@@ -1,0 +1,10 @@
+{
+  "description": "A child-friendly dyslexia screening and personalized learning platform with interactive assessments, progress tracking, and assessor-reviewed results.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

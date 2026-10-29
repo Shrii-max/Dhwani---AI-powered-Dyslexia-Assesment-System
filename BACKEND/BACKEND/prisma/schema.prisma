@@ -1,0 +1,118 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model assessment_attempts {
+  attempt_id               Int                       @id @default(autoincrement())
+  student_id               Int
+  started_at               DateTime?                 @default(now()) @db.Timestamp(6)
+  completed_at             DateTime?                 @db.Timestamp(6)
+  status                   String?                   @default("in_progress") @db.VarChar(20)
+  students                 students                  @relation(fields: [student_id], references: [student_id], onDelete: Cascade, onUpdate: NoAction)
+  overall_screening_result overall_screening_result?
+  section_scores           section_scores[]
+  selected_items           selected_items[]
+  student_responses        student_responses[]
+}
+
+model audio_recordings {
+  id                Int               @id @default(autoincrement())
+  response_id       Int
+  audio_storage_ref String
+  retained          Boolean?          @default(false)
+  transcript_text   String?
+  confidence_score  Float?
+  student_responses student_responses @relation(fields: [response_id], references: [response_id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model item_bank {
+  item_id           Int                 @id @default(autoincrement())
+  section           String              @db.VarChar(50)
+  subskill          String?             @db.VarChar(50)
+  difficulty        String?             @db.VarChar(10)
+  prompt            String
+  options           Json?
+  correct_answer    String?
+  response_mode     String?             @db.VarChar(10)
+  is_practice       Boolean?            @default(false)
+  active            Boolean?            @default(true)
+  selected_items    selected_items[]
+  student_responses student_responses[]
+}
+
+model overall_screening_result {
+  attempt_id          Int                 @id
+  composite_score     Float?
+  profile_indicator   String?             @db.VarChar(30)
+  interpretation      String?
+  assessment_attempts assessment_attempts @relation(fields: [attempt_id], references: [attempt_id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model playing_with_neon {
+  id    Int    @id @default(autoincrement())
+  name  String
+  value Float? @db.Real
+}
+
+model section_scores {
+  id                  Int                 @id @default(autoincrement())
+  attempt_id          Int
+  section             String              @db.VarChar(50)
+  score_value         Float?
+  metric_type         String?             @db.VarChar(30)
+  assessment_attempts assessment_attempts @relation(fields: [attempt_id], references: [attempt_id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model selected_items {
+  id                  Int                 @id @default(autoincrement())
+  attempt_id          Int
+  item_id             Int
+  section             String              @db.VarChar(50)
+  order_index         Int?
+  assessment_attempts assessment_attempts @relation(fields: [attempt_id], references: [attempt_id], onDelete: Cascade, onUpdate: NoAction)
+  item_bank           item_bank           @relation(fields: [item_id], references: [item_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model student_responses {
+  response_id         Int                 @id @default(autoincrement())
+  attempt_id          Int
+  item_id             Int
+  given_answer        String?
+  is_correct          Boolean?
+  response_time_ms    Int?
+  timestamp           DateTime?           @default(now()) @db.Timestamp(6)
+  audio_recordings    audio_recordings[]
+  assessment_attempts assessment_attempts @relation(fields: [attempt_id], references: [attempt_id], onDelete: Cascade, onUpdate: NoAction)
+  item_bank           item_bank           @relation(fields: [item_id], references: [item_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model students {
+  student_id          Int                   @id @default(autoincrement())
+  parent_id           Int
+  name                String                @db.VarChar(100)
+  age                 Int?
+  grade               String?               @db.VarChar(20)
+  home_language       String?               @db.VarChar(50)
+  username            String                @unique @db.VarChar(50)
+  pin_hash            String
+  created_at          DateTime?             @default(now()) @db.Timestamp(6)
+  assessment_attempts assessment_attempts[]
+  users               users                 @relation(fields: [parent_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([parent_id], map: "idx_students_parent")
+}
+
+model users {
+  user_id       Int        @id @default(autoincrement())
+  name          String     @db.VarChar(100)
+  email         String     @unique @db.VarChar(150)
+  password_hash String
+  created_at    DateTime?  @default(now()) @db.Timestamp(6)
+  students      students[]
+}
