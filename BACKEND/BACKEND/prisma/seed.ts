@@ -2,9 +2,9 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-// The 10 core assessment items matching the frontend assessment tasks
+// The 10 core assessment items matching the canonical assessment tasks
 // Note: Database check constraint requires response_mode to be 'click' or 'mic'
-const assessmentItems = [
+export const canonicalAssessmentItems = [
   {
     section: 'phonological_awareness',
     subskill: 'phoneme_identification',
@@ -117,37 +117,65 @@ const assessmentItems = [
   }
 ];
 
-async function seedDatabase() {
+export async function seedDatabase(prismaClient = prisma) {
   try {
-    console.log('🌱 Starting database seed check...');
+    console.log('🌱 Starting database question audit & seed verification...');
 
     let inserted = 0;
-    let existing = 0;
+    let updated = 0;
+    let alreadyValid = 0;
 
-    for (const item of assessmentItems) {
-      const match = await prisma.item_bank.findFirst({
-        where: { prompt: item.prompt }
+    for (const item of canonicalAssessmentItems) {
+      // Find matching item by subskill/section or by prompt
+      let match = await prismaClient.item_bank.findFirst({
+        where: {
+          section: item.section,
+          subskill: item.subskill
+        }
       });
 
       if (!match) {
-        await prisma.item_bank.create({
+        match = await prismaClient.item_bank.findFirst({
+          where: { prompt: item.prompt }
+        });
+      }
+
+      if (!match) {
+        await prismaClient.item_bank.create({
           data: item
         });
         inserted++;
       } else {
-        existing++;
+        // Safe update of verifiable mismatches without touching item_id or relations
+        await prismaClient.item_bank.update({
+          where: { item_id: match.item_id },
+          data: {
+            section: item.section,
+            subskill: item.subskill,
+            difficulty: item.difficulty,
+            prompt: item.prompt,
+            options: item.options,
+            correct_answer: item.correct_answer,
+            response_mode: item.response_mode,
+            active: true
+          }
+        });
+        updated++;
       }
     }
 
-    const totalCount = await prisma.item_bank.count();
-    console.log(`✓ Seed check complete: ${inserted} items inserted, ${existing} already existed. Total item_bank records: ${totalCount}`);
-    console.log('✅ Database seeding verified successfully');
+    const totalCount = await prismaClient.item_bank.count();
+    console.log(`✓ Seed verification complete: ${inserted} items inserted, ${updated} items verified/updated. Total item_bank records: ${totalCount}`);
+    console.log('✅ Database questions verified successfully without resetting data');
+    return { inserted, updated, totalCount };
   } catch (error) {
-    console.error('❌ Error seeding database:', error);
+    console.error('❌ Error seeding/verifying database:', error);
     throw error;
   } finally {
-    await prisma.$disconnect();
+    await prismaClient.$disconnect();
   }
 }
 
-seedDatabase();
+if (require.main === module) {
+  seedDatabase();
+}

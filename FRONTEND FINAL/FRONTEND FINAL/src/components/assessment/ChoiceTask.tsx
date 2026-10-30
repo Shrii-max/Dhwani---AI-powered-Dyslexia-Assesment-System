@@ -11,11 +11,23 @@ export function ChoiceTask({
   onReady: (selected?: string) => void
 }) {
   const [selected, setSelected] = useState("")
+  const isIdentification =
+    test.slug === "phoneme-identification" ||
+    test.id === 1 ||
+    test.title?.toLowerCase().includes("identification")
+  const isMatching =
+    test.slug === "phoneme-matching" ||
+    test.id === 2 ||
+    test.title?.toLowerCase().includes("matching")
+
   return (
     <div className="choice-layout">
       <section className="stimulus-card compact">
         <span className="stimulus-label">Target word</span>
-        <button className="listen-orb" onClick={() => speak(test.stimulus)}>
+        <button
+          className="listen-orb"
+          onClick={() => speak(test.wordAudio || test.stimulus)}
+        >
           <Volume2 />
           <span>Listen</span>
         </button>
@@ -25,7 +37,7 @@ export function ChoiceTask({
       <section className="options-panel">
         <span className="kicker">Choose one answer</span>
         <h3>
-          {test.id === 1
+          {isIdentification
             ? "Which sound begins the word?"
             : "Which answer matches?"}
         </h3>
@@ -40,7 +52,7 @@ export function ChoiceTask({
               }}
             >
               <span>{o}</span>
-              {test.id === 2 && <Volume2 size={17} />}
+              {isMatching && <Volume2 size={17} />}
             </button>
           ))}
         </div>

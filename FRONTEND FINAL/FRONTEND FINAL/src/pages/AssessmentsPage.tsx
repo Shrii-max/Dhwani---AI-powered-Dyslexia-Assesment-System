@@ -17,6 +17,8 @@ interface DbItem {
   subskillName: string
   slug: string
   prompt: string
+  instruction?: string
+  stimulus?: string
   difficulty: string | null
   response_mode: string | null
   options: any
@@ -173,7 +175,7 @@ export function AssessmentsPage() {
 
                   return (
                     <Link
-                      to={`/assessment/${item.item_id}`}
+                      to={`/assessment/${item.slug || item.item_id}`}
                       className="test-row"
                       key={item.item_id}
                     >
@@ -182,7 +184,7 @@ export function AssessmentsPage() {
                       </span>
                       <div>
                         <small>{item.subskillName || sec.sectionName}</small>
-                        <b>{item.prompt}</b>
+                        <b>{item.instruction || item.prompt}</b>
                         {item.difficulty && (
                           <p style={{ textTransform: "capitalize" }}>
                             Difficulty: {item.difficulty} • Mode: {typeLabel}

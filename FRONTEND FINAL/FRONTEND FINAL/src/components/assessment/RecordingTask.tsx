@@ -11,7 +11,27 @@ export function RecordingTask({
   test: AssessmentTest
   onReady: (blob?: Blob | null) => void
 }) {
-  const substitution = test.id === 6
+  const isSubstitution =
+    test.slug === "phoneme-substitution" ||
+    test.id === 6 ||
+    test.title?.toLowerCase().includes("substitution")
+  const isSegmentation =
+    test.slug === "phoneme-segmentation" ||
+    test.id === 4 ||
+    test.title?.toLowerCase().includes("segmentation")
+  const isDeletion =
+    test.slug === "phoneme-deletion" ||
+    test.id === 5 ||
+    test.title?.toLowerCase().includes("deletion")
+
+  const removeSound = test.swapSounds?.remove || "/m/"
+  const addSound = test.swapSounds?.add || "/c/"
+
+  // The word to speak on audio listen
+  const spokenWord =
+    test.wordAudio ||
+    (isDeletion ? "smile" : isSubstitution ? "MAT" : test.stimulus)
+
   return (
     <div className="recording-layout">
       <section className="stimulus-card">
@@ -22,29 +42,29 @@ export function RecordingTask({
           <small>{test.meta}</small>
         </div>
         <h2>{test.stimulus}</h2>
-        {test.id === 4 && (
+        {isSegmentation && (
           <div className="sound-boxes">
             <i />
             <i />
             <i />
           </div>
         )}
-        {substitution && (
+        {isSubstitution && (
           <div className="swap">
             <span>
               <small>Sound to change</small>
-              <b>/m/</b>
+              <b>{removeSound}</b>
             </span>
             <ArrowRight />
             <span>
               <small>New sound</small>
-              <b>/c/</b>
+              <b>{addSound}</b>
             </span>
           </div>
         )}
-        <Button onClick={() => speak(test.id === 5 ? "smile" : test.stimulus)}>
+        <Button onClick={() => speak(spokenWord)}>
           <Volume2 size={18} />{" "}
-          {test.id === 6 ? "Listen: “MAT”" : "Play word audio"}
+          {isSubstitution ? `Listen: “${spokenWord}”` : "Play word audio"}
         </Button>
       </section>
       <Recorder onReady={onReady} />

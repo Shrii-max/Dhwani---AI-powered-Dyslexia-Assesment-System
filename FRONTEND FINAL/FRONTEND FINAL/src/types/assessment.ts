@@ -8,4 +8,8 @@ export type AssessmentTest = {
   type: "choice" | "blend" | "record" | "reading" | "ran"
   options?: string[]
   meta?: string
+  targetAnswer?: string
+  wordAudio?: string
+  soundSequence?: string[]
+  swapSounds?: { remove: string; add: string }
 }

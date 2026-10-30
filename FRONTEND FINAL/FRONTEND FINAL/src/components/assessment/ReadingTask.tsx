@@ -5,9 +5,11 @@ import { Recorder } from "./Recorder"
 export function ReadingTask({
   test,
   onReady,
+  isSaved = false,
 }: {
   test: AssessmentTest
   onReady: (blob?: Blob | null) => void
+  isSaved?: boolean
 }) {
   return (
     <div className="reading-layout">
@@ -25,13 +27,16 @@ export function ReadingTask({
       <Recorder onReady={onReady} />
       <div className="telemetry">
         <span>
-          <Check /> Recording saved<small>Stored locally</small>
+          <Check /> {isSaved ? "Recording saved" : "Audio capture ready"}
+          <small>{isSaved ? "Saved to Neon DB" : "Ready to submit"}</small>
         </span>
         <span>
-          <Activity /> Response detected<small>Pending review</small>
+          <Activity /> {isSaved ? "Response evaluated" : "Speech detection active"}
+          <small>{isSaved ? "Azure AI analyzed" : "Audio input monitored"}</small>
         </span>
         <span>
-          <ShieldCheck /> Assessor review<small>Not auto-scored</small>
+          <ShieldCheck /> Database storage
+          <small>{isSaved ? "Confirmed in Neon" : "Pending submission"}</small>
         </span>
       </div>
     </div>

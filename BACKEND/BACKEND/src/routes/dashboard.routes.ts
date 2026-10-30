@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import prisma from '../config/database';
-import { authenticate, AuthRequest } from '../middleware/auth.middleware';
+import { optionalAuthenticate, AuthRequest } from '../middleware/auth.middleware';
 import { AppError } from '../middleware/errorHandler';
 
 const router = Router();
@@ -11,7 +11,7 @@ function normalize(value: string | null | undefined): string {
 }
 
 // Get user's assessment progress
-router.get('/progress', authenticate, async (req: AuthRequest, res: Response, next) => {
+router.get('/progress', optionalAuthenticate, async (req: AuthRequest, res: Response, next) => {
   try {
     const studentId = req.studentId ? parseInt(req.studentId, 10) : null;
 
@@ -66,20 +66,20 @@ router.get('/progress', authenticate, async (req: AuthRequest, res: Response, ne
     const responses = latestSession.student_responses;
 
     const phonologicalCount = responses.filter(r => {
-      const sec = normalize(r.item_bank.section);
-      const sub = normalize(r.item_bank.subskill);
+      const sec = normalize(r.item_bank?.section);
+      const sub = normalize(r.item_bank?.subskill);
       return sec.includes('phonolog') || sec.includes('phoneme') || sub.includes('phon');
     }).length;
 
     const wordReadingCount = responses.filter(r => {
-      const sec = normalize(r.item_bank.section);
-      const sub = normalize(r.item_bank.subskill);
+      const sec = normalize(r.item_bank?.section);
+      const sub = normalize(r.item_bank?.subskill);
       return sec.includes('word') || sec.includes('reading') || sub.includes('reading') || sub.includes('pseudoword');
     }).length;
 
     const rapidNamingCount = responses.filter(r => {
-      const sec = normalize(r.item_bank.section);
-      const sub = normalize(r.item_bank.subskill);
+      const sec = normalize(r.item_bank?.section);
+      const sub = normalize(r.item_bank?.subskill);
       return sec.includes('rapid') || sec.includes('ran') || sub.includes('ran');
     }).length;
 
@@ -126,7 +126,7 @@ router.get('/progress', authenticate, async (req: AuthRequest, res: Response, ne
 });
 
 // Get recommended practice activities
-router.get('/recommendations', authenticate, async (req: AuthRequest, res: Response, next) => {
+router.get('/recommendations', optionalAuthenticate, async (req: AuthRequest, res: Response, next) => {
   try {
     const studentId = req.studentId ? parseInt(req.studentId, 10) : null;
 
@@ -169,7 +169,7 @@ router.get('/recommendations', authenticate, async (req: AuthRequest, res: Respo
 });
 
 // Get dashboard summary
-router.get('/summary', authenticate, async (req: AuthRequest, res: Response, next) => {
+router.get('/summary', optionalAuthenticate, async (req: AuthRequest, res: Response, next) => {
   try {
     const studentId = req.studentId ? parseInt(req.studentId, 10) : null;
     const parentId = req.userId ? parseInt(req.userId, 10) : null;

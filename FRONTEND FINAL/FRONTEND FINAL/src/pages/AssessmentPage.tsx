@@ -7,6 +7,9 @@ import {
   Loader2,
   ShieldCheck,
   Volume2,
+  CheckCircle2,
+  XCircle,
+  HelpCircle,
 } from "lucide-react"
 import { useNavigate, useParams } from "react-router-dom"
 import { AssessmentHeader } from "../components/assessment/AssessmentHeader"
@@ -22,31 +25,25 @@ import type { AssessmentTest } from "../types/assessment"
 import {
   assessmentAPI,
   responseAPI,
-  resultsAPI,
-  getToken,
+  type AudioEvaluationDetail,
 } from "../services/api"
 
 export function AssessmentPage() {
   const { slug } = useParams()
   const navigate = useNavigate()
 
-  const staticFallback = assessments.find((t) => t.slug === slug) || assessments[0]
+  const staticFallback =
+    assessments.find((t) => t.slug === slug || String(t.id) === slug) ||
+    assessments[0]
   const [test, setTest] = useState<AssessmentTest>(staticFallback)
   const [dbItemId, setDbItemId] = useState<number>(() => {
     const num = Number(slug)
     return !isNaN(num) && num > 0 ? num : staticFallback.id
   })
 
-  const [ready, setReady] = useState(
-    () =>
-      localStorage.getItem(`dhwani-item-${dbItemId}`) === "submitted" ||
-      localStorage.getItem(`dhwani-${test.id}`) === "submitted",
-  )
-  const [submitted, setSubmitted] = useState(
-    () =>
-      localStorage.getItem(`dhwani-item-${dbItemId}`) === "submitted" ||
-      localStorage.getItem(`dhwani-${test.id}`) === "submitted",
-  )
+  // Start with unsubmitted state; only confirmed after real backend save
+  const [ready, setReady] = useState<boolean>(false)
+  const [submitted, setSubmitted] = useState<boolean>(false)
   const [submitting, setSubmitting] = useState(false)
   const [sessionId, setSessionId] = useState<string>(
     () => localStorage.getItem("dhwani_session_id") || "",
@@ -55,6 +52,10 @@ export function AssessmentPage() {
     selectedOption?: string
     audioBlob?: Blob | null
   }>({})
+
+  // Evaluation display state
+  const [evaluationResult, setEvaluationResult] = useState<AudioEvaluationDetail | null>(null)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   // Fetch dynamic question data from Neon DB
   useEffect(() => {
@@ -95,12 +96,22 @@ export function AssessmentPage() {
             }
           }
 
-          // Extract clean stimulus
-          let stimulus = item.correct_answer || item.prompt
-          const colonMatch = item.prompt?.match(/:\s*([A-Za-z0-9_\/•\s]+)$/)
-          if (colonMatch && colonMatch[1]) {
-            stimulus = colonMatch[1].trim()
-          }
+          // Match against canonical dataset for full metadata
+          const canonical =
+            assessments.find(
+              (a) =>
+                a.slug === item.slug ||
+                a.id === item.item_id ||
+                (item.subskill && a.slug.replace(/-/g, "_") === item.subskill) ||
+                (item.subskill && a.slug.includes(item.subskill.replace(/_/g, "-"))),
+            ) || staticFallback
+
+          // Extract clean stimulus from backend API or canonical dataset
+          const stimulus =
+            item.stimulus ||
+            canonical.stimulus ||
+            item.target_word ||
+            item.prompt
 
           const categoryNames: Record<string, string> = {
             phonological_awareness: "Phonological Awareness",
@@ -111,20 +122,43 @@ export function AssessmentPage() {
 
           setTest({
             id: item.item_id,
-            slug: String(item.item_id),
-            title: item.subskill
-              ? item.subskill
-                  .replace(/_/g, " ")
-                  .replace(/\b\w/g, (c: string) => c.toUpperCase())
-              : staticFallback.title,
-            category: categoryNames[sec] || sec.replace(/_/g, " "),
-            instruction: item.prompt || staticFallback.instruction,
+            slug: item.slug || canonical.slug || String(item.item_id),
+            title:
+              item.title ||
+              canonical.title ||
+              (item.subskill
+                ? item.subskill
+                    .replace(/_/g, " ")
+                    .replace(/\b\w/g, (c: string) => c.toUpperCase())
+                : staticFallback.title),
+            category:
+              item.category ||
+              categoryNames[sec] ||
+              canonical.category ||
+              sec.replace(/_/g, " "),
+            instruction:
+              item.instruction ||
+              canonical.instruction ||
+              item.prompt ||
+              staticFallback.instruction,
             stimulus: stimulus || staticFallback.stimulus,
-            type,
-            options: Array.isArray(parsedOptions) ? parsedOptions : staticFallback.options,
-            meta: item.difficulty
-              ? `Difficulty: ${item.difficulty}`
-              : staticFallback.meta,
+            type: canonical.type || type,
+            options: Array.isArray(parsedOptions)
+              ? parsedOptions
+              : (canonical.options || staticFallback.options),
+            meta:
+              item.meta ||
+              canonical.meta ||
+              (item.difficulty
+                ? `Difficulty: ${item.difficulty}`
+                : staticFallback.meta),
+            targetAnswer:
+              item.target_answer ||
+              item.correct_answer ||
+              canonical.targetAnswer,
+            wordAudio: item.word_audio || canonical.wordAudio,
+            soundSequence: item.sound_sequence || canonical.soundSequence,
+            swapSounds: item.swap_sounds || canonical.swapSounds,
           })
         }
       } catch (err) {
@@ -135,12 +169,12 @@ export function AssessmentPage() {
     loadTest()
   }, [slug])
 
-  // Ensure session exists
+  // Ensure assessment session exists in Neon database
   useEffect(() => {
     async function initSession() {
       try {
         let currentSessionId = localStorage.getItem("dhwani_session_id")
-        if (!currentSessionId && getToken()) {
+        if (!currentSessionId) {
           const session = await assessmentAPI.startSession().catch(() => null)
           if (session) {
             currentSessionId = String(session.attempt_id || session.id)
@@ -149,30 +183,32 @@ export function AssessmentPage() {
           }
         }
       } catch (err) {
-        console.error("Session initialization notice:", err)
+        console.warn("Session initialization notice:", err)
       }
     }
 
     initSession()
   }, [])
 
+  // Reset ready/submitted state when navigating to a new question
   useEffect(() => {
-    const isSubmitted =
-      localStorage.getItem(`dhwani-item-${dbItemId}`) === "submitted" ||
-      localStorage.getItem(`dhwani-${test.id}`) === "submitted"
-    setSubmitted(isSubmitted)
-    setReady(isSubmitted)
+    setSubmitted(false)
+    setReady(false)
     setResponsePayload({})
+    setEvaluationResult(null)
+    setErrorMessage(null)
   }, [dbItemId, test.id])
 
   const submit = async () => {
     if (submitting) return
     setSubmitting(true)
+    setErrorMessage(null)
 
     try {
+      // 1. Ensure active assessment attempt exists in Neon database
       let activeSessionId = sessionId || localStorage.getItem("dhwani_session_id")
-      if (!activeSessionId && getToken()) {
-        const session = await assessmentAPI.startSession().catch(() => null)
+      if (!activeSessionId) {
+        const session = await assessmentAPI.startSession()
         if (session) {
           activeSessionId = String(session.attempt_id || session.id)
           localStorage.setItem("dhwani_session_id", activeSessionId)
@@ -180,43 +216,56 @@ export function AssessmentPage() {
         }
       }
 
-      if (activeSessionId) {
-        // Submit based on task type
-        if (test.type === "choice" || test.type === "blend") {
-          const option =
-            responsePayload.selectedOption ||
-            (test.options ? test.options[0] : test.stimulus)
+      if (!activeSessionId) {
+        throw new Error("Unable to establish an assessment session with the server.")
+      }
 
-          await responseAPI.submitChoice({
-            sessionId: activeSessionId,
-            testId: dbItemId,
-            selectedOption: option,
-          }).catch((e) => console.warn("Choice submit notice:", e))
-        } else {
-          // Audio / Reading / RAN
-          const blob =
-            responsePayload.audioBlob ||
-            new Blob(["AUDIO_RECORDING_PAYLOAD"], { type: "audio/webm" })
+      // 2. Submit response payload based on task type
+      if (test.type === "choice" || test.type === "blend") {
+        const option =
+          responsePayload.selectedOption ||
+          (test.options ? test.options[0] : (test.targetAnswer || test.stimulus))
 
-          await responseAPI.submitAudio(
-            activeSessionId,
-            dbItemId,
-            blob,
-            test.stimulus,
-          ).catch((e) => console.warn("Audio submit notice:", e))
+        await responseAPI.submitChoice({
+          sessionId: activeSessionId,
+          testId: dbItemId,
+          selectedOption: option,
+        })
+      } else {
+        // Audio / Reading / RAN
+        if (!responsePayload.audioBlob) {
+          setErrorMessage("Please record your answer before submitting.")
+          setSubmitting(false)
+          return
+        }
+
+        const expectedSpokenText =
+          test.targetAnswer ||
+          test.stimulus
+
+        const audioRes = await responseAPI.submitAudio(
+          activeSessionId,
+          dbItemId,
+          responsePayload.audioBlob,
+          expectedSpokenText,
+        )
+
+        if (audioRes && audioRes.evaluation) {
+          setEvaluationResult(audioRes.evaluation)
         }
       }
 
-      localStorage.setItem(`dhwani-item-${dbItemId}`, "submitted")
-      localStorage.setItem(`dhwani-${test.id}`, "submitted")
+      // 3. Mark as submitted ONLY after database response confirmation
       setSubmitted(true)
+      localStorage.setItem(`dhwani-item-${dbItemId}`, "submitted")
 
-      setTimeout(() => navigate("/assessments"), 500)
-    } catch (err) {
-      console.error("Failed to submit response:", err)
-      localStorage.setItem(`dhwani-item-${dbItemId}`, "submitted")
-      setSubmitted(true)
-      setTimeout(() => navigate("/assessments"), 500)
+      const delay = test.type === "choice" || test.type === "blend" ? 500 : 2500
+      setTimeout(() => navigate("/assessments"), delay)
+    } catch (err: any) {
+      console.error("Failed to submit response to backend:", err)
+      setErrorMessage(err.message || "Failed to submit recording to database. Please check connection and try again.")
+      // Strictly do not mark submitted or record false success in localStorage
+      setSubmitted(false)
     } finally {
       setSubmitting(false)
     }
@@ -262,7 +311,7 @@ export function AssessmentPage() {
             test={test}
             onReady={(blob) => {
               setResponsePayload({ audioBlob: blob })
-              setReady(true)
+              setReady(Boolean(blob))
             }}
           />
         )}
@@ -271,17 +320,92 @@ export function AssessmentPage() {
             test={test}
             onReady={(blob) => {
               setResponsePayload({ audioBlob: blob })
-              setReady(true)
+              setReady(Boolean(blob))
             }}
+            isSaved={submitted}
           />
         )}
         {test.type === "ran" && (
           <RanTask
             onReady={(blob) => {
               setResponsePayload({ audioBlob: blob })
-              setReady(true)
+              setReady(Boolean(blob))
             }}
           />
+        )}
+
+        {/* Live Speech Recognition & Answer Evaluation Banner */}
+        {evaluationResult && (
+          <div
+            style={{
+              marginTop: "1.5rem",
+              padding: "1rem 1.25rem",
+              borderRadius: "12px",
+              border: `1.5px solid ${
+                evaluationResult.status === "correct"
+                  ? "#22c55e"
+                  : evaluationResult.status === "unclear"
+                    ? "#eab308"
+                    : "#ef4444"
+              }`,
+              background:
+                evaluationResult.status === "correct"
+                  ? "#f0fdf4"
+                  : evaluationResult.status === "unclear"
+                    ? "#fefce8"
+                    : "#fef2f2",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+              display: "flex",
+              flexDirection: "column",
+              gap: "8px",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              {evaluationResult.status === "correct" && (
+                <CheckCircle2 size={24} color="#16a34a" />
+              )}
+              {evaluationResult.status === "incorrect" && (
+                <XCircle size={24} color="#dc2626" />
+              )}
+              {evaluationResult.status === "unclear" && (
+                <HelpCircle size={24} color="#ca8a04" />
+              )}
+              <b style={{ fontSize: "1.05rem", color: "#1f2937" }}>
+                {evaluationResult.status === "correct"
+                  ? "Speech Recognized: Correct Answer!"
+                  : evaluationResult.status === "unclear"
+                    ? "Speech Recognition: Audio Unclear"
+                    : "Speech Recognized: Answer Evaluated"}
+              </b>
+            </div>
+
+            <div style={{ fontSize: "0.92rem", color: "#4b5563", lineHeight: 1.5 }}>
+              <div>
+                <b>Heard speech:</b> "{evaluationResult.transcript || "(no words recognized)"}"
+              </div>
+              <div>
+                <b>Target word:</b> "{evaluationResult.expectedAnswer}"
+              </div>
+              <div style={{ marginTop: "4px", color: "#1f2937" }}>
+                <i>{evaluationResult.feedback}</i>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {errorMessage && (
+          <div
+            style={{
+              marginTop: "1rem",
+              padding: "0.75rem 1rem",
+              borderRadius: "8px",
+              background: "#fef2f2",
+              color: "#991b1b",
+              border: "1px solid #fecaca",
+            }}
+          >
+            {errorMessage}
+          </div>
         )}
 
         <footer className="assessment-footer">
@@ -298,11 +422,11 @@ export function AssessmentPage() {
             <Button disabled={!ready || submitting} onClick={submit}>
               {submitting ? (
                 <>
-                  <Loader2 className="animate-spin" size={17} /> Saving...
+                  <Loader2 className="animate-spin" size={17} /> Saving to database...
                 </>
               ) : submitted ? (
                 <>
-                  Response saved <Check />
+                  Recording saved <Check />
                 </>
               ) : (
                 <>

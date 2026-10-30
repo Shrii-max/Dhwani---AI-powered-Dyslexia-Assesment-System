@@ -11,6 +11,8 @@ export const assessments: AssessmentTest[] = [
     type: "choice",
     options: ["/s/", "/m/", "/t/"],
     meta: "Initial sound",
+    targetAnswer: "/s/",
+    wordAudio: "sun",
   },
   {
     id: 2,
@@ -23,6 +25,8 @@ export const assessments: AssessmentTest[] = [
     type: "choice",
     options: ["map", "sun", "fish"],
     meta: "Sound match",
+    targetAnswer: "map",
+    wordAudio: "moon",
   },
   {
     id: 3,
@@ -35,6 +39,8 @@ export const assessments: AssessmentTest[] = [
     type: "blend",
     options: ["cat", "cap", "tap"],
     meta: "3 sound sequence",
+    targetAnswer: "cat",
+    soundSequence: ["c", "a", "t"],
   },
   {
     id: 4,
@@ -45,6 +51,8 @@ export const assessments: AssessmentTest[] = [
     stimulus: "SHIP",
     type: "record",
     meta: "Sound boxes • 3 phonemes",
+    targetAnswer: "ship",
+    wordAudio: "SHIP",
   },
   {
     id: 5,
@@ -56,6 +64,8 @@ export const assessments: AssessmentTest[] = [
     stimulus: "Say “smile” without /s/",
     type: "record",
     meta: "Remove initial sound",
+    targetAnswer: "mile",
+    wordAudio: "smile",
   },
   {
     id: 6,
@@ -67,6 +77,9 @@ export const assessments: AssessmentTest[] = [
     stimulus: "MAT",
     type: "record",
     meta: "Replace /m/ with /c/",
+    targetAnswer: "cat",
+    wordAudio: "MAT",
+    swapSounds: { remove: "/m/", add: "/c/" },
   },
   {
     id: 7,
@@ -77,6 +90,8 @@ export const assessments: AssessmentTest[] = [
     stimulus: "JUMP",
     type: "reading",
     meta: "CVCC pattern • Regular decodable",
+    targetAnswer: "jump",
+    wordAudio: "JUMP",
   },
   {
     id: 8,
@@ -87,6 +102,8 @@ export const assessments: AssessmentTest[] = [
     stimulus: "SAID",
     type: "reading",
     meta: "Orthographic sight word",
+    targetAnswer: "said",
+    wordAudio: "SAID",
   },
   {
     id: 9,
@@ -97,6 +114,8 @@ export const assessments: AssessmentTest[] = [
     stimulus: "MIP",
     type: "reading",
     meta: "Novel sequence • CVC",
+    targetAnswer: "mip",
+    wordAudio: "MIP",
   },
   {
     id: 10,
@@ -108,5 +127,6 @@ export const assessments: AssessmentTest[] = [
     stimulus: "RAN grid",
     type: "ran",
     meta: "5 × 6 stable stimulus array",
+    targetAnswer: "ran",
   },
 ]

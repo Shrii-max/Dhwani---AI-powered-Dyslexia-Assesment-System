@@ -149,16 +149,38 @@ export const assessmentAPI = {
   }
 };
 
+export interface AudioEvaluationDetail {
+  transcript: string;
+  expectedAnswer: string;
+  isCorrect: boolean;
+  status: 'correct' | 'incorrect' | 'unclear';
+  confidence: number;
+  similarity: number;
+  pronunciationScore: number;
+  accuracyScore: number;
+  fluencyScore: number;
+  completenessScore: number;
+  errorType: string | null;
+  feedback: string;
+}
+
 // Response APIs
 export const responseAPI = {
   async submitChoice(data: {
     sessionId: string;
     testId: number;
     selectedOption: string;
+    responseTimeMs?: number;
   }) {
     const result = await apiCall<{
       success: boolean;
-      data: { response: any; isCorrect: boolean; score: number };
+      data: {
+        response: any;
+        isCorrect: boolean;
+        score: number;
+        expectedAnswer?: string;
+        givenAnswer?: string;
+      };
     }>('/responses', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -170,18 +192,26 @@ export const responseAPI = {
     sessionId: string,
     testId: number,
     audioBlob: Blob,
-    expectedText: string
+    expectedText?: string,
+    responseTimeMs?: number
   ) {
     const formData = new FormData();
     formData.append('audio', audioBlob, 'recording.wav');
     formData.append('sessionId', sessionId);
     formData.append('testId', testId.toString());
-    formData.append('expectedText', expectedText);
+    if (expectedText) {
+      formData.append('expectedText', expectedText);
+    }
+    if (responseTimeMs) {
+      formData.append('responseTimeMs', responseTimeMs.toString());
+    }
 
     const result = await apiCall<{
       success: boolean;
       data: {
         response: any;
+        recording?: any;
+        evaluation: AudioEvaluationDetail;
         assessment: {
           transcript: string;
           isCorrect: boolean;

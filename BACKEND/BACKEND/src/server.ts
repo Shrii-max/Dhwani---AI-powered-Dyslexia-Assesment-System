@@ -2,7 +2,7 @@ import express, { Application, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes';
-import assessmentRoutes from './routes/assessment.routes';
+import assessmentRoutes, { auditAndSyncDatabaseQuestions } from './routes/assessment.routes';
 import responseRoutes from './routes/response.routes';
 import resultsRoutes from './routes/results.routes';
 import dashboardRoutes from './routes/dashboard.routes';
@@ -13,27 +13,50 @@ dotenv.config();
 const app: Application = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware
-const allowedOrigins = [
-  process.env.FRONTEND_URL,
-  'http://localhost:5173',
-  'http://localhost:8443',
-  'http://localhost:3000',
-  'http://localhost:4173',
-  'http://127.0.0.1:5173',
-  'http://127.0.0.1:8443'
-].filter(Boolean) as string[];
-
-app.use(cors({
+// Universal CORS configuration supporting credentials and all frontend origins
+const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
-      return callback(null, true);
-    }
-    return callback(null, true); // Permissive in dev/local environment
+    // Reflect request origin to allow localhost:8443, 5173, 127.0.0.1, or remote previews
+    callback(null, true);
   },
-  credentials: true
-}));
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'],
+  allowedHeaders: [
+    'Origin',
+    'X-Requested-With',
+    'Content-Type',
+    'Accept',
+    'Authorization',
+    'Range',
+    'Cache-Control',
+    'x-client-info'
+  ],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  maxAge: 86400
+};
+
+// Immediate preflight & CORS header injector (runs before all routes and errors)
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const origin = req.headers.origin;
+  if (origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  } else {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+  }
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'Origin, X-Requested-With, Content-Type, Accept, Authorization, Range, Cache-Control, x-client-info'
+  );
+
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end();
+  }
+  next();
+});
+
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -71,6 +94,11 @@ app.listen(PORT, () => {
   console.log(`🚀 Dhwani Backend Server running on port ${PORT}`);
   console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔗 Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:8443'}`);
+
+  // Safe question verification and synchronization on startup
+  auditAndSyncDatabaseQuestions()
+    .then((r) => console.log('✅ Question data audit & sync status:', r))
+    .catch((err) => console.warn('Question audit/sync notice:', err));
 });
 
 export default app;

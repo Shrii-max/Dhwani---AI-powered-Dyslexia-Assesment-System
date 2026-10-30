@@ -12,14 +12,21 @@ export function BlendTask({
   onReady: (selected?: string) => void
 }) {
   const [selected, setSelected] = useState("")
-  const sounds = ["c", "a", "t"]
+
+  // Extract sound sequence dynamically from test metadata or stimulus
+  const sounds =
+    test.soundSequence && test.soundSequence.length > 0
+      ? test.soundSequence
+      : (test.stimulus.match(/\/([a-zA-Z0-9]+)\//g)?.map((s) => s.replace(/\//g, "")) ||
+         ["c", "a", "t"])
+
   return (
     <div className="blend-layout">
       <section className="sound-sequence">
         <span className="kicker">Sound sequence</span>
         <div>
           {sounds.map((s, i) => (
-            <button key={s} onClick={() => speak(s)}>
+            <button key={`${s}-${i}`} onClick={() => speak(s)}>
               <Play size={15} />
               <b>/{s}/</b>
               <small>Sound {i + 1}</small>

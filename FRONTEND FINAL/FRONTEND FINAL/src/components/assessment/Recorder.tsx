@@ -10,6 +10,7 @@ export function Recorder({ onReady }: { onReady: (blob?: Blob | null) => void })
   useEffect(() => {
     if (r.state === "ready") onReady(r.blob)
   }, [r.state, r.blob])
+
   return (
     <section className="recorder-panel">
       <div className="recorder-head">
@@ -44,8 +45,7 @@ export function Recorder({ onReady }: { onReady: (blob?: Blob | null) => void })
           </>
         )}
         <span className="safe-note">
-          <ShieldCheck size={16} /> Audio remains on this device in this
-          prototype.
+          <ShieldCheck size={16} /> Voice captured securely • Ready to submit to Azure AI & Neon
         </span>
       </div>
     </section>
