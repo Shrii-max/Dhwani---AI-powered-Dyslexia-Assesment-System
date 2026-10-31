@@ -2,8 +2,15 @@ import { useEffect, useState } from "react"
 import {
   ArrowRight,
   BookOpen,
+  CheckCircle2,
   ChevronRight,
   Clock3,
+  Database,
+  Flame,
+  LayoutDashboard,
+  Play,
+  RotateCcw,
+  Sparkles,
   Target,
   Waves,
 } from "lucide-react"
@@ -69,38 +76,44 @@ export function DashboardPage() {
       <div className="page dashboard">
         <section className="welcome">
           <div>
-            <span className="eyebrow">{todayStr}</span>
+            <span className="eyebrow">
+              <Sparkles size={14} /> {todayStr}
+            </span>
             <h1>Welcome back, {userName}</h1>
             <p>
               {isAllComplete
-                ? "You have completed all screening activities! View your results and profile."
-                : "You're making steady progress. Continue when you feel ready."}
+                ? "You have completed all 10 screening activities! Your verified profile and results are ready."
+                : "You're making steady progress. Screening is self-paced, supportive, and untimed."}
             </p>
           </div>
           {isAllComplete ? (
             <Link className="btn primary" to="/results">
-              View screening results <ArrowRight size={18} />
+              View Verified Results <ArrowRight size={18} />
             </Link>
           ) : (
             <Link className="btn primary" to={`/assessment/${nextTest.slug}`}>
-              Continue assessment <ArrowRight size={18} />
+              Continue Screening <ArrowRight size={18} />
             </Link>
           )}
         </section>
+
         <div className="dashboard-grid">
-          <section className="panel progress-panel">
+          {/* Main Progress Glass Card */}
+          <section className="panel progress-panel glass-card">
             <div className="panel-head">
               <div>
-                <span className="kicker">Overall assessment</span>
+                <span className="kicker">Overall Progress</span>
                 <h2>
-                  {progress.completedTests} of {progress.totalTests} activities complete
+                  {progress.completedTests} of {progress.totalTests} Activities Completed
                 </h2>
               </div>
               <span className="big-percent">{progress.percentage}%</span>
             </div>
-            <div className="progress">
+
+            <div className="progress" style={{ height: "10px", margin: "14px 0 24px" }}>
               <i style={{ width: `${progress.percentage}%` }} />
             </div>
+
             <div className="category-list">
               {progress.categories.map((cat, i) => (
                 <div className="category" key={cat.name}>
@@ -115,58 +128,74 @@ export function DashboardPage() {
                   </div>
                   <span
                     className={`status ${
-                      cat.status === "Complete" ? "success" : ""
+                      cat.status === "Complete" || cat.completed === cat.total ? "success" : ""
                     }`}
                   >
-                    {cat.status}
+                    {cat.status === "Complete" || cat.completed === cat.total ? (
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                        <CheckCircle2 size={12} /> Complete
+                      </span>
+                    ) : (
+                      cat.status
+                    )}
                   </span>
                 </div>
               ))}
             </div>
           </section>
-          <aside className="panel journey">
-            <span className="kicker">Your learning journey</span>
-            <h2>Keep building sound confidence</h2>
+
+          {/* Learning Journey Aside */}
+          <aside className="panel journey glass-card">
+            <span className="kicker">Sound Pathway</span>
+            <h2>Consistent Practice</h2>
+
             <div className="ring">
               <span>
                 {progress.completedTests}
                 <small>activities</small>
               </span>
             </div>
-            <p>
-              Consistent practice helps build strong, lasting reading pathways.
+
+            <p style={{ color: "var(--mut)", fontSize: "14px", lineHeight: 1.6 }}>
+              Frequent, short sessions build strong neural bridges between visual letter shapes and spoken sounds.
             </p>
-            <Link to="/practice">
-              View recommended practice <ChevronRight size={17} />
+
+            <Link className="btn secondary small" to="/practice" style={{ marginTop: "14px", width: "100%" }}>
+              Explore Practice Sessions <ChevronRight size={16} />
             </Link>
           </aside>
         </div>
-        <section className="section-head">
+
+        {/* Recommended Learning Activities */}
+        <section className="section-head" style={{ marginTop: "48px", marginBottom: "20px", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
           <div>
-            <span className="kicker">Continue learning</span>
-            <h2>Recommended for you</h2>
+            <span className="kicker">Personalized Support</span>
+            <h2 style={{ fontSize: "1.6rem", margin: "6px 0 0" }}>Recommended Activities</h2>
           </div>
-          <Link to="/practice">View all</Link>
+          <Link to="/practice" style={{ color: "var(--teal)", fontWeight: 700, fontSize: "14px" }}>
+            View all practice &rarr;
+          </Link>
         </section>
+
         <div className="activity-grid">
           {(recommendations.length > 0
             ? recommendations
             : [
                 {
-                  title: "Sound detective",
-                  description: "Find the first sound",
+                  title: "Phoneme Explorer",
+                  description: "Isolate initial and ending sounds in common words",
                   duration: "8 min",
                   Icon: Target,
                 },
                 {
-                  title: "Blend and build",
-                  description: "Join sounds into words",
+                  title: "Sound Blender 3000",
+                  description: "Join auditory sequences into fluent words",
                   duration: "10 min",
                   Icon: Waves,
                 },
                 {
-                  title: "Word pathways",
-                  description: "Practice familiar patterns",
+                  title: "Visual Word Match",
+                  description: "Connect letter shapes with auditory phoneme models",
                   duration: "7 min",
                   Icon: BookOpen,
                 },
@@ -176,17 +205,17 @@ export function DashboardPage() {
             return (
               <Link to="/practice" className={`activity-card a${i}`} key={rec.title + i}>
                 <span>
-                  <Icon />
+                  <Icon size={24} />
                 </span>
                 <div>
                   <b>{rec.title}</b>
                   <p>{rec.description}</p>
                   <small>
                     <Clock3 size={13} />
-                    {rec.duration || "8 min"}
+                    {rec.duration || "8 min"} • Untimed
                   </small>
                 </div>
-                <ChevronRight />
+                <ChevronRight size={18} style={{ color: "var(--teal)", marginLeft: "auto" }} />
               </Link>
             )
           })}

@@ -13,76 +13,184 @@ const auth_middleware_1 = require("../middleware/auth.middleware");
 const router = (0, express_1.Router)();
 // Validation schemas
 const signupSchema = zod_1.z.object({
-    email: zod_1.z.string().email('Invalid email format'),
-    password: zod_1.z.string().min(8, 'Password must be at least 8 characters'),
-    name: zod_1.z.string().min(2, 'Name must be at least 2 characters')
+    email: zod_1.z
+        .string({ required_error: 'Email address is required' })
+        .trim()
+        .toLowerCase()
+        .email('Please enter a valid email address (e.g. name@example.com)'),
+    password: zod_1.z
+        .string({ required_error: 'Password is required' })
+        .min(8, 'Password must be at least 8 characters long'),
+    name: zod_1.z
+        .string({ required_error: 'Full name is required' })
+        .trim()
+        .min(2, 'Full name must be at least 2 characters long')
+        .max(100, 'Full name cannot exceed 100 characters')
 });
 const loginSchema = zod_1.z.object({
-    email: zod_1.z.string().email('Invalid email format'),
-    password: zod_1.z.string().min(1, 'Password is required')
+    email: zod_1.z
+        .string({ required_error: 'Email address is required' })
+        .trim()
+        .toLowerCase()
+        .email('Please enter a valid email address'),
+    password: zod_1.z
+        .string({ required_error: 'Password is required' })
+        .min(1, 'Password is required')
 });
 // Signup - creates user (parent)
 router.post('/signup', async (req, res, next) => {
+    console.log(`[AUTH] POST /api/auth/signup received at ${new Date().toISOString()}`);
+    console.log('[AUTH] Request body summary:', {
+        name: req.body?.name,
+        email: req.body?.email,
+        hasPassword: Boolean(req.body?.password)
+    });
     try {
-        const validatedData = signupSchema.parse(req.body);
-        // Check if user exists
-        const existingUser = await database_1.default.users.findUnique({
-            where: { email: validatedData.email }
-        });
-        if (existingUser) {
-            throw new errorHandler_1.AppError('Email already registered', 400);
+        // 1. Validate payload with Zod safeParse
+        const parseResult = signupSchema.safeParse(req.body);
+        if (!parseResult.success) {
+            const validationErrors = {};
+            parseResult.error.issues.forEach((issue) => {
+                const field = issue.path[0] || 'form';
+                if (!validationErrors[field]) {
+                    validationErrors[field] = issue.message;
+                }
+            });
+            const firstError = parseResult.error.issues[0]?.message || 'Please check the form fields';
+            console.warn('[AUTH] Signup validation rejected input:', validationErrors);
+            return res.status(400).json({
+                success: false,
+                error: firstError,
+                message: firstError,
+                validationErrors
+            });
         }
-        // Hash password
+        const validatedData = parseResult.data;
+        // 2. Check for duplicate email in Neon database
+        let existingUser = null;
+        try {
+            existingUser = await database_1.default.users.findFirst({
+                where: {
+                    email: {
+                        equals: validatedData.email,
+                        mode: 'insensitive'
+                    }
+                }
+            });
+        }
+        catch (dbQueryErr) {
+            console.error('[AUTH] Neon DB connection check failed during signup:', dbQueryErr?.message || dbQueryErr);
+            return res.status(503).json({
+                success: false,
+                error: 'Unable to connect to database server. Please check your network and Neon credentials.',
+                message: dbQueryErr?.message || 'Database connection failure.'
+            });
+        }
+        if (existingUser) {
+            console.warn('[AUTH] Duplicate email signup rejected:', validatedData.email);
+            return res.status(400).json({
+                success: false,
+                error: 'An account with this email address already exists. Please sign in instead.',
+                message: 'An account with this email address already exists. Please sign in instead.',
+                validationErrors: {
+                    email: 'An account with this email address already exists.'
+                }
+            });
+        }
+        // 3. Hash password
         const hashedPassword = await bcryptjs_1.default.hash(validatedData.password, 10);
-        // Create user
-        const user = await database_1.default.users.create({
-            data: {
-                email: validatedData.email,
-                password_hash: hashedPassword,
-                name: validatedData.name
-            },
-            select: {
-                user_id: true,
-                email: true,
-                name: true,
-                created_at: true
+        // 4. Create user in Neon DB
+        let user = null;
+        try {
+            user = await database_1.default.users.create({
+                data: {
+                    email: validatedData.email,
+                    password_hash: hashedPassword,
+                    name: validatedData.name
+                },
+                select: {
+                    user_id: true,
+                    email: true,
+                    name: true,
+                    created_at: true
+                }
+            });
+            console.log(`[AUTH] Successfully created user in Neon DB: ${user.email} (ID: ${user.user_id})`);
+        }
+        catch (dbCreateErr) {
+            console.error('[AUTH] Failed to create user in Neon DB:', dbCreateErr);
+            if (dbCreateErr?.code === 'P2002') {
+                return res.status(400).json({
+                    success: false,
+                    error: 'An account with this email address already exists. Please sign in instead.',
+                    message: 'An account with this email address already exists. Please sign in instead.',
+                    validationErrors: {
+                        email: 'An account with this email address already exists.'
+                    }
+                });
             }
-        });
-        // Generate JWT
+            return res.status(500).json({
+                success: false,
+                error: 'Failed to create user record in database. Please inspect server logs.',
+                message: dbCreateErr?.message || 'Database insert failed.'
+            });
+        }
+        // 5. Generate JWT
         const secret = process.env.JWT_SECRET;
         if (!secret) {
-            throw new errorHandler_1.AppError('JWT secret not configured', 500);
+            console.error('[AUTH] JWT_SECRET is not configured in .env');
+            return res.status(500).json({
+                success: false,
+                error: 'Server authentication configuration error (JWT secret missing).',
+                message: 'JWT configuration error.'
+            });
         }
         const payload = { userId: user.user_id, email: user.email };
         const token = jsonwebtoken_1.default.sign(payload, secret, { expiresIn: '24h' });
-        res.status(201).json({
+        console.log(`[AUTH] Successfully issued 24h JWT token for user ${user.email}`);
+        return res.status(201).json({
             success: true,
-            message: 'User registered successfully',
+            message: 'Account created successfully',
             data: { user, token }
         });
     }
     catch (error) {
-        if (error instanceof zod_1.z.ZodError) {
-            return next(new errorHandler_1.AppError(error.errors[0].message, 400));
-        }
-        next(error);
+        console.error('[AUTH] Unexpected signup route error:', error);
+        return res.status(500).json({
+            success: false,
+            error: error?.message || 'An unexpected error occurred during signup.',
+            message: error?.message || 'An unexpected error occurred.'
+        });
     }
 });
 // Login
 router.post('/login', async (req, res, next) => {
     try {
         const validatedData = loginSchema.parse(req.body);
-        // Find user
-        const user = await database_1.default.users.findUnique({
-            where: { email: validatedData.email }
+        // Find user (case-insensitive email matching)
+        const user = await database_1.default.users.findFirst({
+            where: {
+                email: {
+                    equals: validatedData.email,
+                    mode: 'insensitive'
+                }
+            }
         });
         if (!user) {
-            throw new errorHandler_1.AppError('Invalid email or password', 401);
+            return res.status(401).json({
+                success: false,
+                error: 'Invalid email or password',
+                message: 'Invalid email or password'
+            });
         }
         // Verify password
         const isValidPassword = await bcryptjs_1.default.compare(validatedData.password, user.password_hash);
         if (!isValidPassword) {
-            throw new errorHandler_1.AppError('Invalid email or password', 401);
+            return res.status(401).json({
+                success: false,
+                error: 'Invalid email or password',
+                message: 'Invalid email or password'
+            });
         }
         // Generate JWT
         const secret = process.env.JWT_SECRET;
@@ -105,8 +213,14 @@ router.post('/login', async (req, res, next) => {
         });
     }
     catch (error) {
-        if (error instanceof zod_1.z.ZodError) {
-            return next(new errorHandler_1.AppError(error.errors[0].message, 400));
+        if (error instanceof zod_1.z.ZodError || error?.name === 'ZodError' || Array.isArray(error?.issues)) {
+            const issues = (error?.issues || error?.errors || []);
+            const firstMessage = issues[0]?.message || 'Invalid email or password';
+            return res.status(400).json({
+                success: false,
+                error: firstMessage,
+                message: firstMessage
+            });
         }
         next(error);
     }

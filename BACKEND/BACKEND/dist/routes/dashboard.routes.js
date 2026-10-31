@@ -12,7 +12,7 @@ function normalize(value) {
     return (value ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 // Get user's assessment progress
-router.get('/progress', auth_middleware_1.authenticate, async (req, res, next) => {
+router.get('/progress', auth_middleware_1.optionalAuthenticate, async (req, res, next) => {
     try {
         const studentId = req.studentId ? parseInt(req.studentId, 10) : null;
         if (!studentId) {
@@ -62,18 +62,18 @@ router.get('/progress', auth_middleware_1.authenticate, async (req, res, next) =
         // Calculate category progress from student responses
         const responses = latestSession.student_responses;
         const phonologicalCount = responses.filter(r => {
-            const sec = normalize(r.item_bank.section);
-            const sub = normalize(r.item_bank.subskill);
+            const sec = normalize(r.item_bank?.section);
+            const sub = normalize(r.item_bank?.subskill);
             return sec.includes('phonolog') || sec.includes('phoneme') || sub.includes('phon');
         }).length;
         const wordReadingCount = responses.filter(r => {
-            const sec = normalize(r.item_bank.section);
-            const sub = normalize(r.item_bank.subskill);
+            const sec = normalize(r.item_bank?.section);
+            const sub = normalize(r.item_bank?.subskill);
             return sec.includes('word') || sec.includes('reading') || sub.includes('reading') || sub.includes('pseudoword');
         }).length;
         const rapidNamingCount = responses.filter(r => {
-            const sec = normalize(r.item_bank.section);
-            const sub = normalize(r.item_bank.subskill);
+            const sec = normalize(r.item_bank?.section);
+            const sub = normalize(r.item_bank?.subskill);
             return sec.includes('rapid') || sec.includes('ran') || sub.includes('ran');
         }).length;
         const categories = [
@@ -117,7 +117,7 @@ router.get('/progress', auth_middleware_1.authenticate, async (req, res, next) =
     }
 });
 // Get recommended practice activities
-router.get('/recommendations', auth_middleware_1.authenticate, async (req, res, next) => {
+router.get('/recommendations', auth_middleware_1.optionalAuthenticate, async (req, res, next) => {
     try {
         const studentId = req.studentId ? parseInt(req.studentId, 10) : null;
         if (!studentId) {
@@ -155,7 +155,7 @@ router.get('/recommendations', auth_middleware_1.authenticate, async (req, res, 
     }
 });
 // Get dashboard summary
-router.get('/summary', auth_middleware_1.authenticate, async (req, res, next) => {
+router.get('/summary', auth_middleware_1.optionalAuthenticate, async (req, res, next) => {
     try {
         const studentId = req.studentId ? parseInt(req.studentId, 10) : null;
         const parentId = req.userId ? parseInt(req.userId, 10) : null;

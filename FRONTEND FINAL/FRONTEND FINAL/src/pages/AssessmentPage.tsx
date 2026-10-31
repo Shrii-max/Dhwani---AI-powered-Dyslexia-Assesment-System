@@ -63,7 +63,8 @@ export function AssessmentPage() {
       if (!slug) return
 
       try {
-        const item = await assessmentAPI.getTestBySlug(slug).catch(() => null)
+        const activeSessionId = sessionId || localStorage.getItem("dhwani_session_id") || undefined
+        const item = await assessmentAPI.getTestBySlug(slug, activeSessionId).catch(() => null)
         if (item && item.item_id) {
           setDbItemId(item.item_id)
 
@@ -339,22 +340,23 @@ export function AssessmentPage() {
           <div
             style={{
               marginTop: "1.5rem",
-              padding: "1rem 1.25rem",
-              borderRadius: "12px",
-              border: `1.5px solid ${
+              padding: "1.2rem 1.4rem",
+              borderRadius: "16px",
+              border: `1px solid ${
                 evaluationResult.status === "correct"
-                  ? "#22c55e"
+                  ? "var(--teal)"
                   : evaluationResult.status === "unclear"
-                    ? "#eab308"
-                    : "#ef4444"
+                    ? "var(--gold)"
+                    : "var(--danger)"
               }`,
               background:
                 evaluationResult.status === "correct"
-                  ? "#f0fdf4"
+                  ? "rgba(43, 212, 190, 0.1)"
                   : evaluationResult.status === "unclear"
-                    ? "#fefce8"
-                    : "#fef2f2",
-              boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+                    ? "rgba(245, 158, 11, 0.1)"
+                    : "rgba(255, 92, 119, 0.1)",
+              backdropFilter: "blur(12px)",
+              boxShadow: "0 8px 30px rgba(0,0,0,0.3)",
               display: "flex",
               flexDirection: "column",
               gap: "8px",
@@ -362,15 +364,15 @@ export function AssessmentPage() {
           >
             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
               {evaluationResult.status === "correct" && (
-                <CheckCircle2 size={24} color="#16a34a" />
+                <CheckCircle2 size={24} color="var(--teal)" />
               )}
               {evaluationResult.status === "incorrect" && (
-                <XCircle size={24} color="#dc2626" />
+                <XCircle size={24} color="var(--danger)" />
               )}
               {evaluationResult.status === "unclear" && (
-                <HelpCircle size={24} color="#ca8a04" />
+                <HelpCircle size={24} color="var(--gold)" />
               )}
-              <b style={{ fontSize: "1.05rem", color: "#1f2937" }}>
+              <b style={{ fontSize: "1.05rem", color: "#fff" }}>
                 {evaluationResult.status === "correct"
                   ? "Speech Recognized: Correct Answer!"
                   : evaluationResult.status === "unclear"
@@ -379,14 +381,14 @@ export function AssessmentPage() {
               </b>
             </div>
 
-            <div style={{ fontSize: "0.92rem", color: "#4b5563", lineHeight: 1.5 }}>
+            <div style={{ fontSize: "0.92rem", color: "var(--ink)", lineHeight: 1.5 }}>
               <div>
-                <b>Heard speech:</b> "{evaluationResult.transcript || "(no words recognized)"}"
+                <b style={{ color: "var(--mut)" }}>Heard speech:</b> "{evaluationResult.transcript || "(no words recognized)"}"
               </div>
               <div>
-                <b>Target word:</b> "{evaluationResult.expectedAnswer}"
+                <b style={{ color: "var(--mut)" }}>Target word:</b> "{evaluationResult.expectedAnswer}"
               </div>
-              <div style={{ marginTop: "4px", color: "#1f2937" }}>
+              <div style={{ marginTop: "6px", color: "var(--sky)" }}>
                 <i>{evaluationResult.feedback}</i>
               </div>
             </div>
@@ -397,11 +399,11 @@ export function AssessmentPage() {
           <div
             style={{
               marginTop: "1rem",
-              padding: "0.75rem 1rem",
-              borderRadius: "8px",
-              background: "#fef2f2",
-              color: "#991b1b",
-              border: "1px solid #fecaca",
+              padding: "0.9rem 1.2rem",
+              borderRadius: "12px",
+              background: "rgba(255, 92, 119, 0.12)",
+              color: "var(--danger)",
+              border: "1px solid rgba(255, 92, 119, 0.35)",
             }}
           >
             {errorMessage}

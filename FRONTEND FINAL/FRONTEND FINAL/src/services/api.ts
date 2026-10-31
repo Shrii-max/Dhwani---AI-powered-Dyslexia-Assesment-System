@@ -1,6 +1,6 @@
 // Frontend API Service - Connect React to Backend
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 // Get JWT token from localStorage
 const getToken = (): string | null => {
@@ -44,8 +44,12 @@ async function apiCall<T>(
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Request failed' }));
-    throw new Error(error.error || error.message || `HTTP ${response.status}`);
+    const errorData = await response.json().catch(() => ({ error: 'Request failed' }));
+    const errorMsg = errorData.error || errorData.message || `HTTP ${response.status}`;
+    const err = new Error(errorMsg);
+    (err as any).validationErrors = errorData.validationErrors;
+    (err as any).status = response.status;
+    throw err;
   }
 
   return response.json();
@@ -98,35 +102,62 @@ export const authAPI = {
 
 // Assessment APIs
 export const assessmentAPI = {
-  async getAllTests() {
+  async getAllTests(params?: { topic?: string; limit?: number; sessionId?: string; refresh?: boolean }) {
+    const query = new URLSearchParams();
+    if (params?.topic) query.set('topic', params.topic);
+    if (params?.limit) query.set('limit', String(params.limit));
+    if (params?.sessionId) query.set('sessionId', params.sessionId);
+    if (params?.refresh) query.set('refresh', 'true');
+    const qs = query.toString();
     const result = await apiCall<{ success: boolean; data: { tests?: any[]; items?: any[] } }>(
-      '/assessments'
+      `/assessments${qs ? `?${qs}` : ''}`
     );
     return result.data.tests || result.data.items || [];
   },
 
-  async getBySection() {
+  async getBySection(params?: { topic?: string; limit?: number; sessionId?: string; refresh?: boolean }) {
+    const query = new URLSearchParams();
+    if (params?.topic) query.set('topic', params.topic);
+    if (params?.limit) query.set('limit', String(params.limit));
+    if (params?.sessionId) query.set('sessionId', params.sessionId);
+    if (params?.refresh) query.set('refresh', 'true');
+    const qs = query.toString();
     const result = await apiCall<{ success: boolean; data: { sections: any[]; total: number } }>(
-      '/assessments/by-section'
+      `/assessments/by-section${qs ? `?${qs}` : ''}`
     );
     return result.data.sections || [];
   },
 
-  async getTestBySlug(slug: string) {
+  async getQuestions(params?: { topic?: string; limit?: number; sessionId?: string; refresh?: boolean }) {
+    const query = new URLSearchParams();
+    if (params?.topic) query.set('topic', params.topic);
+    if (params?.limit) query.set('limit', String(params.limit));
+    if (params?.sessionId) query.set('sessionId', params.sessionId);
+    if (params?.refresh) query.set('refresh', 'true');
+    const qs = query.toString();
+    const result = await apiCall<{ success: boolean; data: { items?: any[]; tests?: any[]; total: number } }>(
+      `/assessments/questions${qs ? `?${qs}` : ''}`
+    );
+    return result.data;
+  },
+
+  async getTestBySlug(slug: string, sessionId?: string) {
+    const query = sessionId ? `?sessionId=${encodeURIComponent(sessionId)}` : '';
     const result = await apiCall<{ success: boolean; data: { test?: any; item?: any } }>(
-      `/assessments/${slug}`
+      `/assessments/${slug}${query}`
     );
     return result.data.test || result.data.item;
   },
 
-  async startSession(deviceInfo?: string) {
+  async startSession(deviceInfo?: string, forceNew: boolean = false) {
     const result = await apiCall<{ success: boolean; data: { session?: any; attempt?: any } }>(
       '/assessments/session',
       {
         method: 'POST',
         body: JSON.stringify({
-          deviceInfo: deviceInfo || navigator.userAgent,
-          ipAddress: 'client'
+          deviceInfo: deviceInfo || (typeof navigator !== 'undefined' ? navigator.userAgent : 'browser'),
+          ipAddress: 'client',
+          forceNew
         }),
       }
     );

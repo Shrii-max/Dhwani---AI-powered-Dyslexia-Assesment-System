@@ -18,6 +18,12 @@ export const errorHandler = (
   res: Response,
   next: NextFunction
 ) => {
+  const origin = req.headers.origin;
+  if (origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  }
+
   if (err instanceof AppError) {
     return res.status(err.statusCode).json({
       success: false,

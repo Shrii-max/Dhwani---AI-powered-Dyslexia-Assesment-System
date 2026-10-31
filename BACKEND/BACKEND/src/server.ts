@@ -13,11 +13,11 @@ dotenv.config();
 const app: Application = express();
 const PORT = process.env.PORT || 5000;
 
-// Universal CORS configuration supporting credentials and all frontend origins
+// Universal CORS configuration supporting credentials and all origins
 const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {
-    // Reflect request origin to allow localhost:8443, 5173, 127.0.0.1, or remote previews
-    callback(null, true);
+    // Dynamically allow requesting origin (e.g. http://localhost:8443, 5173, etc.)
+    callback(null, origin || true);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'],
@@ -34,27 +34,6 @@ const corsOptions: cors.CorsOptions = {
   exposedHeaders: ['Content-Range', 'X-Content-Range'],
   maxAge: 86400
 };
-
-// Immediate preflight & CORS header injector (runs before all routes and errors)
-app.use((req: Request, res: Response, next: NextFunction) => {
-  const origin = req.headers.origin;
-  if (origin) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-  } else {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-  }
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD');
-  res.setHeader(
-    'Access-Control-Allow-Headers',
-    'Origin, X-Requested-With, Content-Type, Accept, Authorization, Range, Cache-Control, x-client-info'
-  );
-
-  if (req.method === 'OPTIONS') {
-    return res.status(204).end();
-  }
-  next();
-});
 
 app.use(cors(corsOptions));
 app.use(express.json());

@@ -11,6 +11,11 @@ class AppError extends Error {
 }
 exports.AppError = AppError;
 const errorHandler = (err, req, res, next) => {
+    const origin = req.headers.origin;
+    if (origin) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+        res.setHeader('Access-Control-Allow-Credentials', 'true');
+    }
     if (err instanceof AppError) {
         return res.status(err.statusCode).json({
             success: false,

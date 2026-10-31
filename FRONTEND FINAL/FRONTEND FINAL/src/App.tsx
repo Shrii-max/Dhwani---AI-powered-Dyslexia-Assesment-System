@@ -4,6 +4,7 @@ import { AssessmentsPage } from "./pages/AssessmentsPage"
 import { AuthPage } from "./pages/AuthPage"
 import { CompletionPage } from "./pages/CompletionPage"
 import { DashboardPage } from "./pages/DashboardPage"
+import { HomePage } from "./pages/HomePage"
 import { LandingPage } from "./pages/LandingPage"
 import { ResultsPage } from "./pages/ResultsPage"
 import { SimplePage } from "./pages/SimplePage"
@@ -12,9 +13,12 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<LandingPage />} />
+        <Route path="/" element={<HomePage />} />
+        <Route path="/home" element={<HomePage />} />
+        <Route path="/landing" element={<LandingPage />} />
         <Route path="/login" element={<AuthPage mode="login" />} />
         <Route path="/signup" element={<AuthPage mode="signup" />} />
+        <Route path="/register" element={<AuthPage mode="signup" />} />
         <Route path="/forgot-password" element={<AuthPage mode="forgot" />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/assessments" element={<AssessmentsPage />} />
@@ -35,7 +39,7 @@ export default function App() {
         />
         <Route path="/assessor/review" element={<SimplePage type="review" />} />
         <Route path="/assessor/report" element={<SimplePage type="report" />} />
-        <Route path="*" element={<LandingPage />} />
+        <Route path="*" element={<HomePage />} />
       </Routes>
     </BrowserRouter>
   )

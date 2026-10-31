@@ -16,18 +16,20 @@ export function AssessmentHeader({ test }: { test: AssessmentTest }) {
       </div>
       <div className="assessment-progress">
         <span>
-          Item 1 of 5 <b>20% complete</b>
+          Screening Item <b>Untimed Session</b>
         </span>
         <div className="progress">
-          <i style={{ width: "20%" }} />
+          <i style={{ width: "100%" }} />
         </div>
       </div>
-      <Button variant="secondary">
-        <Pause size={17} /> Save & pause
-      </Button>
-      <Link to="/assessments" className="exit-link">
-        <LogOut size={17} /> Exit
-      </Link>
+      <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+        <Button variant="secondary" className="small">
+          <Pause size={15} /> Save &amp; pause
+        </Button>
+        <Link to="/assessments" className="exit-link">
+          <LogOut size={16} /> Exit
+        </Link>
+      </div>
     </header>
   )
 }
